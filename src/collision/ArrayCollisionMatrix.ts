@@ -17,7 +17,7 @@ export class ArrayCollisionMatrix {
   /**
    * Get an element
    */
-  get(bi: Body, bj: Body): number {
+  get(bi: Body, bj: Body): boolean {
     let { index: i } = bi
     let { index: j } = bj
     if (j > i) {
@@ -25,7 +25,7 @@ export class ArrayCollisionMatrix {
       j = i
       i = temp
     }
-    return this.matrix[((i * (i + 1)) >> 1) + j - 1]
+    return !!this.matrix[((i * (i - 1)) >> 1) + j]
   }
 
   /**
@@ -39,7 +39,7 @@ export class ArrayCollisionMatrix {
       j = i
       i = temp
     }
-    this.matrix[((i * (i + 1)) >> 1) + j - 1] = value ? 1 : 0
+    this.matrix[((i * (i - 1)) >> 1) + j] = value ? 1 : 0
   }
 
   /**

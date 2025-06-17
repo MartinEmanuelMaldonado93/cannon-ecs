@@ -16,6 +16,6 @@
     "noImplicitThis": false,
     "baseUrl": "./src"
   },
-  "include": ["./src"],
+  "include": ["src", "test"],
   "exclude": ["./node_modules/**/*", "**/*.test.ts"]
 }

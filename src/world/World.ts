@@ -596,6 +596,8 @@ export class World extends EventTarget {
       }
     }
 
+    // Clear previous collisions and swap matrices
+    this.collisionMatrixPrevious.reset()
     this.collisionMatrixTick()
 
     // Generate contacts

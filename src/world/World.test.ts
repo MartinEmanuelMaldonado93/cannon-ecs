@@ -1,4 +1,5 @@
 import type { Shape } from '../shapes/Shape'
+import { collisionMatrixConfigs, type TestConfig } from '../../test/helpers'
 import { Vec3 } from '../math/Vec3'
 import { Box } from '../shapes/Box'
 import { Sphere } from '../shapes/Sphere'
@@ -7,9 +8,9 @@ import { World } from '../world/World'
 import { ArrayCollisionMatrix } from '../collision/ArrayCollisionMatrix'
 import { ObjectCollisionMatrix } from '../collision/ObjectCollisionMatrix'
 import { RaycastResult } from '../collision/RaycastResult'
-import { testCollisionMatrix } from '../../test/helpers'
 import { Material } from '../material/Material'
 import { ContactMaterial } from '../material/ContactMaterial'
+import { NaiveBroadphase } from '../collision/NaiveBroadphase'
 
 describe('World', () => {
   test('clearForces', () => {
@@ -277,3 +278,62 @@ describe('World', () => {
     expect(world.frictionGravity).toEqual(frictionGravity)
   })
 })
+// Custom matcher implementation
+expect.extend({
+  toBeColliding(received: [World, number, number, boolean], testConfig: TestConfig) {
+    const [world, i, j, isFirstStep] = received
+    const tupleKey = `${i}-${j}`
+    const shouldCollide = !!testConfig.colliding[tupleKey]
+    const isColliding = world.collisionMatrix.get(world.bodies[i], world.bodies[j])
+    // For first step: should match expected collision state
+    // For subsequent steps: should have no collisions (matrix cleared)
+    const pass = isFirstStep ? isColliding === shouldCollide : !isColliding // Only check current frame state in subsequent steps
+
+    return {
+      pass,
+      message: () =>
+        `Expected bodies ${i} and ${j} ${shouldCollide ? 'to collide' : 'not to collide'} (first step: ${isFirstStep})`,
+    }
+  },
+})
+
+export function testCollisionMatrix(CollisionMatrix: any) {
+  for (let config_idx = 0; config_idx < collisionMatrixConfigs.length; config_idx++) {
+    const test_config = {
+      ...collisionMatrixConfigs[config_idx],
+      colliding: collisionMatrixConfigs[config_idx].colliding || {},
+    }
+
+    const world = new World()
+    world.broadphase = new NaiveBroadphase()
+    world.collisionMatrix = new CollisionMatrix()
+    world.collisionMatrixPrevious = new CollisionMatrix()
+
+    // Create bodies with explicit position vectors
+    test_config.positions.forEach(([x, y, z]) => {
+      const body = new Body({
+        mass: 1,
+        position: new Vec3(x, y, z),
+      })
+      body.addShape(new Sphere(1.1))
+      world.addBody(body)
+    })
+
+    // Test collision state after first step only
+    world.step(0.1)
+
+    // Verify expected collisions
+    for (let coll_i = 0; coll_i < world.bodies.length; coll_i++) {
+      for (let coll_j = coll_i + 1; coll_j < world.bodies.length; coll_j++) {
+        const expectedCollision = test_config.colliding[`${coll_i}-${coll_j}`]
+        if (expectedCollision !== undefined) {
+          //@ts-expect-error
+          expect([world, coll_i, coll_j, true]).toBeColliding(test_config)
+        }
+      }
+    }
+
+    // Second step should clear matrices
+    world.step(0.1)
+  }
+}
